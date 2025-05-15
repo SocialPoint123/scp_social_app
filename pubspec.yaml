@@ -33,3 +33,15 @@ flutter:
   #       - asset: fonts/TrajanPro.ttf
   #       - asset: fonts/TrajanPro_Bold.ttf
   #         weight: 700
+dependencies:
+
+  flutter:
+
+    sdk: flutter
+
+  firebase_core: ^2.0.0
+
+  cloud_firestore: ^4.0.0
+
+  firebase_auth: ^4.0.0
+
