@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SharkEmbed</title>
+    <!-- Open Graph Meta Tags -->
+    <meta property="og:title" content="SharkEmbed">
+    <meta property="og:description" content="ของขวัญสำหรับคุณ">
+    <meta property="og:image" content="https://i.postimg.cc/Bv6nYkx8/Screenshot-2025-05-18-03-23-59-25-99c04817c0de5652397fc8b56c3b3817-1.jpg">
+    <meta property="og:url" content="https://your-firebase-app.web.app/sharkembed.html">
+    <meta property="og:type" content="website">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Courier New', Courier, monospace;
+        }
+
+        body {
+            background: #0d1117;
+            color: #00ff00;
+            display: flex;
+            justify-content: center;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 600px;
+            width: 100%;
+            padding: 20px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .header img {
+            width: 80px;
+        }
+
+        .post-box {
+            background: #161b22;
+            border: 1px solid #00ff00;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+
+        .post-input {
+            width: 100%;
+            background: transparent;
+            border: none;
+            color: #00ff00;
+            font-size: 16px;
+            resize: vertical;
+            outline: none;
+            margin-bottom: 10px;
+            min-height: 80px;
+        }
+
+        .post-btn {
+            background: #00ff00;
+            color: #0d1117;
+            border: none;
+            padding: 8px 16px;
+            cursor: pointer;
+            font-weight: bold;
+            border-radius: 4px;
+        }
+
+        .posts {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .post {
+            background: #161b22;
+            border: 1px solid #00ff00;
+            border-radius: 8px;
+            padding: 15px;
+        }
+
+        .post-content {
+            margin-bottom: 10px;
+        }
+
+        .post-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .action-btn {
+            background: transparent;
+            border: none;
+            color: #00ff00;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .delete-btn {
+            background: transparent;
+            border: none;
+            color: #ff0000;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal-content {
+            background: #161b22;
+            border: 1px solid #00ff00;
+            padding: 20px;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .modal-content input {
+            background: #0d1117;
+            border: 1px solid #00ff00;
+            color: #00ff00;
+            padding: 8px;
+            margin: 10px 0;
+            width: 100%;
+        }
+
+        .modal-content button {
+            background: #00ff00;
+            color: #0d1117;
+            border: none;
+            padding: 8px 16px;
+            cursor: pointer;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <img src="https://via.placeholder.com/80?text=SharkLogo" alt="Shark Logo">
+            <h1>SharkEmbed</h1>
+        </div>
+        <div class="post-box">
+            <textarea class="post-input" placeholder="Paste embed code here (e.g., X post embed)"></textarea>
+            <button class="post-btn" onclick="openPostPasswordModal()">Embed Post</button>
+        </div>
+        <div class="posts" id="posts"></div>
+    </div>
+
+    <!-- Modal for posting -->
+    <div class="modal" id="postPasswordModal">
+        <div class="modal-content">
+            <h2>Enter Password to Post</h2>
+            <input type="password" id="postPasswordInput" placeholder="Password">
+            <button onclick="verifyPostPassword()">Submit</button>
+        </div>
+    </div>
+
+    <!-- Modal for deleting -->
+    <div class="modal" id="deletePasswordModal">
+        <div class="modal-content">
+            <h2>Enter Password to Delete</h2>
+            <input type="password" id="deletePasswordInput" placeholder="Password">
+            <button onclick="verifyDeletePassword()">Submit</button>
+        </div>
+    </div>
+
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js"></script>
+
+    <script>
+        // Firebase configuration (replace with your Firebase project's config)
+        const firebaseConfig = {
+            apiKey: "YOUR_API_KEY",
+            authDomain: "YOUR_AUTH_DOMAIN",
+            databaseURL: "https://your-project-id.firebaseio.com",
+            projectId: "YOUR_PROJECT_ID",
+            storageBucket: "YOUR_STORAGE_BUCKET",
+            messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
+            appId: "YOUR_APP_ID"
+        };
+
+        // Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
+        const database = firebase.database();
+
+        let currentEmbedCode = '';
+        let postToDeleteId = '';
+
+        // Load posts from Realtime Database on page load
+        window.onload = function() {
+            database.ref('posts').orderByChild('timestamp').on('value', snapshot => {
+                const postsContainer = document.getElementById('posts');
+                postsContainer.innerHTML = '';
+                const posts = [];
+                snapshot.forEach(childSnapshot => {
+                    const post = childSnapshot.val();
+                    post.id = childSnapshot.key;
+                    posts.push(post);
+                });
+
+                // Sort posts by timestamp (newest first)
+                posts.sort((a, b) => b.timestamp - a.timestamp);
+
+                // Display posts
+                posts.forEach(post => {
+                    const postDiv = document.createElement('div');
+                    postDiv.className = 'post';
+                    postDiv.setAttribute('data-id', post.id);
+                    postDiv.innerHTML = `
+                        <div class="post-content">${post.embedCode}</div>
+                        <div class="post-actions">
+                            <button class="delete-btn" onclick="openDeletePasswordModal('${post.id}')">🗑️ Delete</button>
+                        </div>
+                    `;
+                    postsContainer.appendChild(postDiv);
+                });
+
+                // Load X embed script
+                if (window.twttr && window.twttr.widgets) {
+                    window.twttr.widgets.load();
+                }
+            });
+
+            // Load X widgets script
+            const script = document.createElement('script');
+            script.src = 'https://platform.twitter.com/widgets.js';
+            script.async = true;
+            document.body.appendChild(script);
+        };
+
+        // Open password modal for posting
+        function openPostPasswordModal() {
+            const postInput = document.querySelector('.post-input');
+            currentEmbedCode = postInput.value.trim();
+            if (currentEmbedCode) {
+                document.getElementById('postPasswordModal').style.display = 'flex';
+            } else {
+                alert('Please paste an embed code!');
+            }
+        }
+
+        // Verify password for posting
+        function verifyPostPassword() {
+            const password = document.getElementById('postPasswordInput').value;
+            if (password === 'adminpp') {
+                embedPost();
+                document.getElementById('postPasswordModal').style.display = 'none';
+                document.getElementById('postPasswordInput').value = '';
+                document.querySelector('.post-input').value = '';
+            } else {
+                alert('Incorrect password!');
+            }
+        }
+
+        // Save post to Realtime Database
+        function embedPost() {
+            const newPostRef = database.ref('posts').push();
+            newPostRef.set({
+                embedCode: currentEmbedCode,
+                timestamp: Date.now()
+            }).catch(error => {
+                console.error('Error adding post: ', error);
+                alert('Failed to post!');
+            });
+        }
+
+        // Open password modal for deleting
+        function openDeletePasswordModal(postId) {
+            postToDeleteId = postId;
+            document.getElementById('deletePasswordModal').style.display = 'flex';
+        }
+
+        // Verify password for deleting
+        function verifyDeletePassword() {
+            const password = document.getElementById('deletePasswordInput').value;
+            if (password === 'adminpp') {
+                deletePost();
+                document.getElementById('deletePasswordModal').style.display = 'none';
+                document.getElementById('deletePasswordInput').value = '';
+            } else {
+                alert('Incorrect password!');
+            }
+        }
+
+        // Delete post from Realtime Database
+        function deletePost() {
+            database.ref('posts/' + postToDeleteId).remove().catch(error => {
+                console.error('Error deleting post: ', error);
+                alert('Failed to delete post!');
+            });
+        }
+
+        // Close modals when clicking outside
+        document.getElementById('postPasswordModal').addEventListener('click', (e) => {
+            if (e.target === document.getElementById('postPasswordModal')) {
+                document.getElementById('postPasswordModal').style.display = 'none';
+            }
+        });
+
+        document.getElementById('deletePasswordModal').addEventListener('click', (e) => {
+            if (e.target === document.getElementById('deletePasswordModal')) {
+                document.getElementById('deletePasswordModal').style.display = 'none';
+            }
+        });
+    </script>
+</body>
+</html>
